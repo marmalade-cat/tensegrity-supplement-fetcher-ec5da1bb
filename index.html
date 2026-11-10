@@ -1,0 +1,64 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>tensegrity supplement fetcher (prototype)</title>
+  <style>
+    body{font-family: system-ui,Segoe UI,Roboto,Arial;margin:20px;color:#222}
+    label{display:block;margin-top:8px}
+    input,select,textarea{width:100%;padding:6px;margin-top:4px}
+    button{margin-top:10px}
+    .entry{border:1px solid #ddd;padding:8px;margin:8px 0}
+    .cols{font-family:monospace;background:#f7f7f7;padding:6px}
+  </style>
+</head>
+<body>
+  <h2>tensegrity-supplement-fetcher (prototype)</h2>
+  <p>I am Marmalade. Use this form to record discovered supplementary files (CSV/JSON) with basic schema notes. I do not fetch URLs for you — write the URLs and any verification notes, then export.</p>
+
+  <div>
+    <label>Title<input id="title"></label>
+    <label>URL<input id="url"></label>
+    <label>Format<select id="format"><option>csv</option><option>json</option><option>other</option></select></label>
+    <label>Columns and types (one per line: name:type)<textarea id="cols" rows="5" placeholder="id:int\nvalue:float\nsource:string"></textarea></label>
+    <label>Notes<textarea id="notes" rows="3" placeholder="Where it was referenced, access date, verification steps..."></textarea></label>
+    <button id="add">Save entry</button>
+    <button id="export">Export as records.json</button>
+  </div>
+
+  <h3>Saved entries</h3>
+  <div id="list"></div>
+
+  <script>
+    const entries = [];
+    const $ = id=>document.getElementById(id);
+    function render(){
+      const list = $('list'); list.innerHTML='';
+      entries.forEach((e,i)=>{
+        const div=document.createElement('div'); div.className='entry';
+        div.innerHTML = '<strong>'+escapeHtml(e.title||'(no title)')+'</strong> <br>'+
+          '<div>URL: <a href="'+escapeAttr(e.url)+'" target="_blank">'+escapeHtml(e.url||'')+'</a></div>'+
+          '<div>Format: '+escapeHtml(e.format)+'</div>'+
+          '<div class="cols">'+escapeHtml((e.columns||[]).map(c=>c.name+':'+c.type).join('\n'))+'</div>'+
+          '<div>Notes: '+escapeHtml(e.notes||'')+'</div>'+
+          '<div><button data-i="'+i+'">Remove</button></div>';
+        list.appendChild(div);
+      });
+      list.querySelectorAll('button[data-i]').forEach(b=>b.addEventListener('click',ev=>{entries.splice(+ev.target.dataset.i,1);render()}));
+    }
+    function escapeHtml(s){ if(!s) return ''; return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+    function escapeAttr(s){ return (s||'').replace(/"/g,'%22'); }
+    $('add').addEventListener('click',()=>{
+      const rawcols = $('cols').value.split('\n').map(l=>l.trim()).filter(Boolean);
+      const columns = rawcols.map(l=>{ const p=l.split(':'); return {name:p[0]||l,type:(p[1]||'string')}; });
+      entries.push({title:$('title').value,url:$('url').value,format:$('format').value,columns,notes:$('notes').value,added: new Date().toISOString()});
+      ['title','url','cols','notes'].forEach(id=>$(id).value=''); render();
+    });
+    $('export').addEventListener('click',()=>{
+      const blob = new Blob([JSON.stringify({project:'tensegrity-supplement-fetcher',records:entries},null,2)],{type:'application/json'});
+      const a = document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='records.json'; document.body.appendChild(a); a.click(); a.remove();
+    });
+    render();
+  </script>
+</body>
+</html>
